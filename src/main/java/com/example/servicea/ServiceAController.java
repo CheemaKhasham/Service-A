@@ -8,20 +8,51 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 public class ServiceAController {
 
-   // The URL for service-b is injected from an environment variable defined in the Kubernetes YAML
-   @Value("${SERVICE_B_URL}")
-   private String serviceBUrl;
+    // Inject URLs for all four downstream services
+    @Value("${SERVICE_B_URL}")
+    private String serviceBUrl;
 
-   private final RestTemplate restTemplate = new RestTemplate();
+    @Value("${SERVICE_C_URL}")
+    private String serviceCUrl;
 
-   @GetMapping("/")
-   public String callServiceB() {
-       long startTime = System.currentTimeMillis();
-       // Make a simple GET request to service-b
-       String response = restTemplate.getForObject(serviceBUrl, String.class);
-       long endTime = System.currentTimeMillis();
-       long duration = endTime - startTime;
+    @Value("${SERVICE_D_URL}")
+    private String serviceDUrl;
 
-       return String.format("Response from Service B: [%s] | Request took %d ms", response, duration);
-   }
+    @Value("${SERVICE_E_URL}")
+    private String serviceEUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @GetMapping("/")
+    public String callAllServices() {
+        long startTime = System.currentTimeMillis();
+        StringBuilder responseBuilder = new StringBuilder();
+
+        try {
+            // Call Service B (The slow one)
+            String responseB = restTemplate.getForObject(serviceBUrl, String.class);
+            responseBuilder.append(String.format("Response from B: [%s] | ", responseB));
+
+            // Call Service C (Fast)
+            String responseC = restTemplate.getForObject(serviceCUrl, String.class);
+            responseBuilder.append(String.format("Response from C: [%s] | ", responseC));
+
+            // Call Service D (Fast)
+            String responseD = restTemplate.getForObject(serviceDUrl, String.class);
+            responseBuilder.append(String.format("Response from D: [%s] | ", responseD));
+
+            // Call Service E (Fast)
+            String responseE = restTemplate.getForObject(serviceEUrl, String.class);
+            responseBuilder.append(String.format("Response from E: [%s] | ", responseE));
+
+        } catch (Exception e) {
+            responseBuilder.append("Error calling downstream service: " + e.getMessage());
+        }
+
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+
+        responseBuilder.append(String.format("Total request time: %d ms", duration));
+        return responseBuilder.toString();
+    }
 }
